@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Western Bee Farming Tracker</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════
+     LOGIN SCREEN
+════════════════════════════════════════════════════════════════ -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <span style="font-size:3rem">🍯</span>
+      <h1>Bee Farming Tracker</h1>
+      <p>Apiculture Production &amp; Seasonal Yield Analytics</p>
+    </div>
+
+    <div id="loginError" class="login-error" style="display:none"></div>
+
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="loginEmail" placeholder="your@email.com"
+             onkeydown="if(event.key==='Enter') doLogin()" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••"
+             onkeydown="if(event.key==='Enter') doLogin()" />
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()" id="loginBtn">
+      Sign In
+    </button>
+
+    <div class="login-demo">
+      <div class="login-demo-title">Demo Accounts</div>
+      <div class="demo-accounts">
+        <div class="demo-account" onclick="fillDemo('alice@beefarmer.com','Pass1234!')">
+          <span class="badge badge-active">Beekeeper</span>
+          <span>alice@beefarmer.com</span>
+        </div>
+        <div class="demo-account" onclick="fillDemo('bernard@hiveworks.co','Honey#99')">
+          <span class="badge badge-active">Beekeeper</span>
+          <span>bernard@hiveworks.co</span>
+        </div>
+        <div class="demo-account" onclick="fillDemo('clara@apiary.ke','Clover@22')">
+          <span class="badge badge-active">Beekeeper</span>
+          <span>clara@apiary.ke</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     MAIN APP (hidden until login)
+════════════════════════════════════════════════════════════════ -->
+<div id="appScreen" style="display:none">
+
+<!-- Header -->
+<header class="app-header">
+  <div class="brand">
+    <span class="logo">🍯</span>
+    <div>
+      <h1>Western Bee Farming Tracker</h1>
+      <span>Apiculture Production &amp; Seasonal Yield Analytics</span>
+    </div>
+  </div>
+  <nav class="nav-links">
+    <button class="nav-btn active" data-tab="dashboard" onclick="showTab('dashboard')">📊 <span>Dashboard</span></button>
+    <button class="nav-btn" data-tab="hives" onclick="showTab('hives')">🐝 <span>Hives</span></button>
+    <button class="nav-btn" onclick="location.href='/admin/'">⚙️ <span>Admin</span></button>
+    <div class="user-pill" id="userPill"></div>
+    <button class="nav-btn" onclick="doLogout()">⬡ <span>Logout</span></button>
+  </nav>
+</header>
+
+<!-- Main layout -->
+<div class="main-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">🔍 Filters</div>
+      <div class="filter-group">
+        <label>Farm</label>
+        <select id="filterFarm">
+          <option value="">All Farms</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Year</label>
+        <select id="filterYear">
+          <option value="">All Years</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="applyFilters()">Apply Filters</button>
+      <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="resetFilters()">Reset</button>
+    </div>
+
+    <div class="sidebar-section write-only" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div class="sidebar-title">➕ Quick Add</div>
+      <button class="btn btn-success btn-full" onclick="openAddHarvest()">🍯 New Harvest</button>
+      <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="openAddHive()">🐝 New Hive</button>
+    </div>
+
+    <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div class="sidebar-title">🔐 Session</div>
+      <div id="sessionInfo" style="font-size:.75rem;color:var(--text-muted);line-height:2"></div>
+    </div>
+
+    <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div class="sidebar-title">📡 API</div>
+      <div style="font-size:.73rem;color:var(--text-muted);line-height:1.9">
+        <div><code style="color:var(--amber)">/api/yields/</code></div>
+        <div><code style="color:var(--amber)">/api/harvests/</code></div>
+        <div><code style="color:var(--amber)">/api/farms/</code></div>
+        <div><code style="color:var(--amber)">/api/hives/</code></div>
+        <div><code style="color:var(--amber)">/api/dashboard/</code></div>
+        <div><code style="color:var(--amber)">/api/auth/login/</code></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main-content">
+
+    <!-- DASHBOARD TAB -->
+    <div id="tab-dashboard" class="tab-panel">
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">👨‍🌾</div>
+          <div class="stat-value" id="statBeekeepers">—</div>
+          <div class="stat-label">Beekeepers</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-icon">🏡</div>
+          <div class="stat-value" id="statFarms">—</div>
+          <div class="stat-label">Farms</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">🐝</div>
+          <div class="stat-value" id="statHives">—</div>
+          <div class="stat-label">Active Hives</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📋</div>
+          <div class="stat-value" id="statHarvests">—</div>
+          <div class="stat-label">Harvest Records</div>
+        </div>
+        <div class="stat-card amber">
+          <div class="stat-icon">🍯</div>
+          <div class="stat-value" id="statYield">—</div>
+          <div class="stat-label">Total Yield</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">🏆</div>
+          <div class="stat-value" id="statBest">—</div>
+          <div class="stat-label">Best Harvest</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">📊 Honey Yield by Season</span>
+          </div>
+          <div class="panel-body">
+            <div class="chart-container"><canvas id="seasonalChart"></canvas></div>
+            <div id="seasonSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px;"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">🌸 Yield by Honey Type</span>
+          </div>
+          <div class="panel-body">
+            <div class="chart-container"><canvas id="honeytypeChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📋 Harvest Log</span>
+          <span id="harvestCount" style="font-size:.78rem;color:var(--text-muted)"></span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Farm</th><th>Hive</th>
+                <th>Yield (kg)</th><th>Honey Type</th><th>Season</th><th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="harvestTableBody">
+              <tr><td colspan="7"><div class="loading"><div class="spinner"></div> Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /tab-dashboard -->
+
+    <!-- HIVES TAB -->
+    <div id="tab-hives" class="tab-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🐝 Hive Directory</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="hiveFarm" onchange="loadHivesTable()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.83rem">
+              <option value="">All Farms</option>
+            </select>
+            <button class="btn btn-success btn-sm write-only" onclick="openAddHive()">+ Add Hive</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr><th>Hive #</th><th>Farm</th><th>Type</th><th>Status</th><th>Queen</th><th>Installed</th></tr>
+            </thead>
+            <tbody id="hivesTableBody">
+              <tr><td colspan="6"><div class="loading"><div class="spinner"></div> Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /tab-hives -->
+
+  </main>
+</div><!-- /main-layout -->
+</div><!-- /appScreen -->
+
+<!-- ── Add Harvest Modal ─────────────────────────────── -->
+<div class="modal-overlay" id="harvestModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🍯 Record New Harvest</h3>
+      <button class="modal-close" onclick="closeModal('harvestModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="harvestForm" onsubmit="return false">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Farm *</label>
+            <select id="formFarm" required></select>
+          </div>
+          <div class="form-group">
+            <label>Hive *</label>
+            <select id="formHive" required><option value="">Select farm first</option></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Harvest Date *</label>
+            <input type="date" id="formDate" required />
+          </div>
+          <div class="form-group">
+            <label>Yield (kg) *</label>
+            <input type="number" id="formYield" step="0.01" min="0.1" max="500" placeholder="e.g. 12.5" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Honey Type</label>
+          <select id="formHoneyType">
+            <option value="wildflower">Wildflower</option>
+            <option value="clover">Clover</option>
+            <option value="acacia">Acacia</option>
+            <option value="manuka">Manuka</option>
+            <option value="buckwheat">Buckwheat</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="formNotes" rows="2" placeholder="Optional observations…"></textarea>
+        </div>
+        <div class="form-error" id="harvestError"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('harvestModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitHarvest()">Save Harvest</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add Hive Modal ────────────────────────────────── -->
+<div class="modal-overlay" id="hiveModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🐝 Add New Hive</h3>
+      <button class="modal-close" onclick="closeModal('hiveModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <form id="hiveForm" onsubmit="return false">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Farm *</label>
+            <select id="hiveFarmModal" required><option value="">Select farm…</option></select>
+          </div>
+          <div class="form-group">
+            <label>Hive Number *</label>
+            <input type="text" id="hiveNumber" placeholder="e.g. NAK-09" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Hive Type</label>
+            <select id="hiveType">
+              <option value="langstroth">Langstroth</option>
+              <option value="top_bar">Top-bar</option>
+              <option value="warre">Warré</option>
+              <option value="flow">Flow Hive</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Install Date *</label>
+            <input type="date" id="hiveInstallDate" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Queen Status</label>
+          <select id="hiveQueenStatus">
+            <option value="mated">Mated</option>
+            <option value="new">New</option>
+            <option value="replaced">Replaced</option>
+            <option value="queenless">Queenless</option>
+          </select>
+        </div>
+        <div class="form-error" id="hiveError"></div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('hiveModal')">Cancel</button>
+      <button class="btn btn-success" onclick="submitHive()">Add Hive</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>
