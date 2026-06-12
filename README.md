@@ -123,7 +123,7 @@ All 5 stats in a single DB round-trip. RBAC-scoped for beekeeper role.
 ## Local Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/bee-farming-tracker.git
+git clone https://github.com/Luckytech7/WESTERN_BEE_FARMING_TRACKER.git
 cd bee-farming-tracker
 
 python -m venv venv
