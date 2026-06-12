@@ -124,7 +124,7 @@ All 5 stats in a single DB round-trip. RBAC-scoped for beekeeper role.
 
 ```bash
 git clone https://github.com/Luckytech7/WESTERN_BEE_FARMING_TRACKER.git
-cd bee-farming-tracker
+cd WESTERN_BEE_FARMING_TRACKER
 
 python -m venv venv
 source venv/bin/activate          # Windows: venv\Scripts\activate
