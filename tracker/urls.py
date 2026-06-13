@@ -12,9 +12,11 @@ router.register(r'harvests',   views.HarvestViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('yields/',       views.seasonal_yields,          name='seasonal-yields'),
-    path('dashboard/',    views.dashboard_stats,           name='dashboard-stats'),
-    path('auth/login/',   csrf_exempt(views.login_view),  name='auth-login'),
-    path('auth/logout/',  views.logout_view,               name='auth-logout'),
-    path('auth/whoami/',  views.whoami,                    name='auth-whoami'),
+    path('yields/',        views.seasonal_yields,           name='seasonal-yields'),
+    path('dashboard/',     views.dashboard_stats,           name='dashboard-stats'),
+    path('admin-stats/',   views.admin_stats,               name='admin-stats'),
+    path('auth/login/',           csrf_exempt(views.login_view),   name='auth-login'),
+    path('auth/logout/',          views.logout_view,               name='auth-logout'),
+    path('auth/whoami/',          views.whoami,                    name='auth-whoami'),
+    path('auth/change_password/', views.change_password,           name='auth-change-password'),
 ]

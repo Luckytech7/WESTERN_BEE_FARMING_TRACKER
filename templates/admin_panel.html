@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Admin Panel — Bee Farming Tracker</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}"/>
+  <link rel="stylesheet" href="{% static 'css/admin.css' %}"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ── Login screen ───────────────────────────────────────────────────── -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <span style="font-size:3rem">🍯</span>
+      <h1>Admin Panel</h1>
+      <p>Western Bee Farming Tracker</p>
+    </div>
+    <div id="loginError" class="login-error" style="display:none"></div>
+    <div class="form-group">
+      <label>Email Address</label>
+      <input type="email" id="loginEmail" placeholder="admin@domain" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()" id="loginBtn">Sign In</button>
+    <div class="login-demo">
+      <div class="login-demo-title">Admin Demo Account</div>
+      <div class="demo-account" onclick="fillDemo('asiimwe@rwenzoriapiary.ug','Pass1234!')">
+        <span class="badge badge-admin">Admin</span>
+        <span>asiimwe@rwenzoriapiary.ug</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── App ────────────────────────────────────────────────────────────── -->
+<div id="appScreen" style="display:none">
+
+<header class="app-header">
+  <div class="brand">
+    <span class="logo">🍯</span>
+    <div>
+      <h1>Admin Panel</h1>
+      <span>Western Bee Farming Tracker</span>
+    </div>
+  </div>
+  <nav class="nav-links">
+    <button class="nav-btn active" data-tab="overview"   onclick="showTab('overview')">📊 Overview</button>
+    <button class="nav-btn" data-tab="beekeepers"        onclick="showTab('beekeepers')">👨‍🌾 Beekeepers</button>
+    <button class="nav-btn" data-tab="farms"             onclick="showTab('farms')">🏡 Farms</button>
+    <button class="nav-btn" data-tab="hives"             onclick="showTab('hives')">🐝 Hives</button>
+    <button class="nav-btn" data-tab="seasons"           onclick="showTab('seasons')">📅 Seasons</button>
+    <button class="nav-btn" data-tab="harvests"          onclick="showTab('harvests')">🍯 Harvests</button>
+    <div class="user-pill" id="userPill"></div>
+    <button class="nav-btn" onclick="location.href='/'">🌐 Dashboard</button>
+    <button class="nav-btn" onclick="location.href='/django-admin/'" title="Django backend admin">🛠 DB Admin</button>
+    <button class="nav-btn" onclick="doLogout()">⬡ Logout</button>
+  </nav>
+</header>
+
+<div class="admin-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">🔍 Quick Filters</div>
+      <div class="filter-group">
+        <label>Year</label>
+        <select id="adminYear" onchange="refreshAll()">
+          <option value="">All Years</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Farm</label>
+        <select id="adminFarm" onchange="refreshAll()">
+          <option value="">All Farms</option>
+        </select>
+      </div>
+    </div>
+    <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div class="sidebar-title">➕ Quick Create</div>
+      <button class="btn btn-success btn-full" onclick="openModal('addBeekeeperModal')">👨‍🌾 Add Beekeeper</button>
+      <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="openModal('addFarmModal')">🏡 Add Farm</button>
+      <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="openModal('addSeasonModal')">📅 Add Season</button>
+      <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="openModal('addHiveModal')">🐝 Add Hive</button>
+    </div>
+    <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+      <div class="sidebar-title">🔐 Session</div>
+      <div id="sessionInfo" style="font-size:.75rem;color:var(--text-muted);line-height:2"></div>
+    </div>
+  </aside>
+
+  <!-- Content -->
+  <main class="main-content">
+
+    <!-- ── OVERVIEW TAB ──────────────────────────────────────────────── -->
+    <div id="tab-overview" class="tab-panel">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-icon">👨‍🌾</div><div class="stat-value" id="stBeekeepers">—</div><div class="stat-label">Beekeepers</div></div>
+        <div class="stat-card amber"><div class="stat-icon">🏡</div><div class="stat-value" id="stFarms">—</div><div class="stat-label">Farms</div></div>
+        <div class="stat-card green"><div class="stat-icon">🐝</div><div class="stat-value" id="stHives">—</div><div class="stat-label">Active Hives</div></div>
+        <div class="stat-card"><div class="stat-icon">📋</div><div class="stat-value" id="stHarvests">—</div><div class="stat-label">Harvests</div></div>
+        <div class="stat-card amber"><div class="stat-icon">🍯</div><div class="stat-value" id="stYield">—</div><div class="stat-label">Total Yield</div></div>
+        <div class="stat-card green"><div class="stat-icon">🏆</div><div class="stat-value" id="stBest">—</div><div class="stat-label">Best Harvest</div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">📊 Yield by Season</span></div>
+          <div class="panel-body"><div class="chart-container"><canvas id="seasonChart"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">🏡 Top Farms by Yield</span></div>
+          <div class="panel-body"><div class="chart-container"><canvas id="farmChart"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">👨‍🌾 Users by Role</span></div>
+          <div class="panel-body"><div class="chart-container" style="height:200px"><canvas id="roleChart"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><span class="panel-title">🐝 Hives by Type</span></div>
+          <div class="panel-body"><div class="chart-container" style="height:200px"><canvas id="hiveTypeChart"></canvas></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── BEEKEEPERS TAB ────────────────────────────────────────────── -->
+    <div id="tab-beekeepers" class="tab-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">👨‍🌾 Beekeepers</span>
+          <button class="btn btn-success btn-sm" onclick="openModal('addBeekeeperModal')">+ Add</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Farms</th><th>Registered</th><th>Actions</th></tr></thead>
+            <tbody id="beekeepersBody"><tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FARMS TAB ─────────────────────────────────────────────────── -->
+    <div id="tab-farms" class="tab-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🏡 Farms</span>
+          <button class="btn btn-success btn-sm" onclick="openModal('addFarmModal')">+ Add</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Farm</th><th>Location</th><th>Owner</th><th>Active Hives</th><th>Established</th><th>Actions</th></tr></thead>
+            <tbody id="farmsBody"><tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── HIVES TAB ──────────────────────────────────────────────────── -->
+    <div id="tab-hives" class="tab-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🐝 Hives</span>
+          <button class="btn btn-success btn-sm" onclick="openModal('addHiveModal')">+ Add</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Hive #</th><th>Farm</th><th>Type</th><th>Status</th><th>Queen</th><th>Installed</th><th>Actions</th></tr></thead>
+            <tbody id="hivesBody"><tr><td colspan="7"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SEASONS TAB ────────────────────────────────────────────────── -->
+    <div id="tab-seasons" class="tab-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📅 Seasons</span>
+          <button class="btn btn-success btn-sm" onclick="openModal('addSeasonModal')">+ Add Season</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Season</th><th>Year</th><th>Start Month</th><th>End Month</th><th>Harvests</th><th>Actions</th></tr></thead>
+            <tbody id="seasonsBody"><tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── HARVESTS TAB ───────────────────────────────────────────────── -->
+    <div id="tab-harvests" class="tab-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🍯 Harvest Records</span>
+          <span id="harvestCountBadge" style="font-size:.78rem;color:var(--text-muted)"></span>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Farm</th><th>Hive</th><th>Yield (kg)</th><th>Season</th><th>Notes</th></tr></thead>
+            <tbody id="harvestsBody"><tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+</div><!-- /appScreen -->
+
+<!-- ══ MODALS ═══════════════════════════════════════════════════════════ -->
+
+<!-- Add Beekeeper -->
+<div class="modal-overlay" id="addBeekeeperModal">
+  <div class="modal">
+    <div class="modal-header"><h3>👨‍🌾 Add Beekeeper</h3><button class="modal-close" onclick="closeModal('addBeekeeperModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Full Name *</label><input type="text" id="bkName"/></div>
+      <div class="form-group"><label>Email *</label><input type="email" id="bkEmail"/></div>
+      <div class="form-group"><label>Password *</label><input type="password" id="bkPassword"/></div>
+      <div class="form-group">
+        <label>Role *</label>
+        <select id="bkRole">
+          <option value="beekeeper">Beekeeper</option>
+          <option value="farm_user">Farm User</option>
+          <option value="viewer">Viewer</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div class="form-error" id="bkError"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addBeekeeperModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitBeekeeper()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Farm -->
+<div class="modal-overlay" id="addFarmModal">
+  <div class="modal">
+    <div class="modal-header"><h3>🏡 Add Farm</h3><button class="modal-close" onclick="closeModal('addFarmModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Farm Name *</label><input type="text" id="farmName"/></div>
+      <div class="form-group"><label>Location *</label><input type="text" id="farmLocation"/></div>
+      <div class="form-group"><label>Established Date *</label><input type="date" id="farmDate"/></div>
+      <div class="form-group"><label>Owner (Beekeeper) *</label><select id="farmOwner"></select></div>
+      <div class="form-error" id="farmError"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addFarmModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitFarm()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Season -->
+<div class="modal-overlay" id="addSeasonModal">
+  <div class="modal">
+    <div class="modal-header"><h3>📅 Add Season</h3><button class="modal-close" onclick="closeModal('addSeasonModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Season Name *</label>
+          <select id="seasonName">
+            <option value="Long Rains">Long Rains</option>
+            <option value="Long Dry">Long Dry</option>
+            <option value="Short Rains">Short Rains</option>
+            <option value="Short Dry">Short Dry</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Year *</label><input type="number" id="seasonYear" min="2020" max="2035" placeholder="e.g. 2026"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Start Month (1–12) *</label><input type="number" id="seasonStart" min="1" max="12"/></div>
+        <div class="form-group"><label>End Month (1–12) *</label><input type="number" id="seasonEnd" min="1" max="12"/></div>
+      </div>
+      <div class="form-error" id="seasonError"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addSeasonModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitSeason()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Hive -->
+<div class="modal-overlay" id="addHiveModal">
+  <div class="modal">
+    <div class="modal-header"><h3>🐝 Add Hive</h3><button class="modal-close" onclick="closeModal('addHiveModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Farm *</label><select id="hiveFarmSel"></select></div>
+        <div class="form-group"><label>Hive Number *</label><input type="text" id="hiveNum" placeholder="e.g. RH-09"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Type</label>
+          <select id="hiveTypeSel">
+            <option value="langstroth">Langstroth</option>
+            <option value="top_bar">Top-bar</option>
+            <option value="log_hive">Log Hive</option>
+            <option value="kenya_top">Kenya Top-bar</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Install Date *</label><input type="date" id="hiveDate"/></div>
+      </div>
+      <div class="form-group">
+        <label>Queen Status</label>
+        <select id="hiveQueen">
+          <option value="mated">Mated</option>
+          <option value="new">New</option>
+          <option value="replaced">Replaced</option>
+          <option value="queenless">Queenless</option>
+        </select>
+      </div>
+      <div class="form-error" id="hiveError"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addHiveModal')">Cancel</button>
+      <button class="btn btn-success" onclick="submitHive()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header"><h3>⚠️ Confirm Delete</h3><button class="modal-close" onclick="closeModal('deleteModal')">✕</button></div>
+    <div class="modal-body"><p id="deleteMsg" style="font-size:.9rem;color:#333"></p></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('deleteModal')">Cancel</button>
+      <button class="btn" style="background:#C62828;color:#fff" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="resetPasswordModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3>🔑 Reset Password</h3>
+      <button class="modal-close" onclick="closeModal('resetPasswordModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="resetPwTitle" style="font-size:.85rem;color:#555;margin-bottom:12px"></p>
+      <div id="resetPwError" style="color:#C62828;font-size:.8rem;margin-bottom:8px"></div>
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="resetPwNew" placeholder="Min 6 characters" />
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="resetPwConfirm" placeholder="Repeat new password"
+               onkeydown="if(event.key==='Enter')submitResetPassword()" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('resetPasswordModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitResetPassword()">Reset Password</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="{% static 'js/admin.js' %}"></script>
+</body>
+</html>

@@ -37,7 +37,7 @@
       Sign In
     </button>
 
-    <div class="login-demo">
+    <!-- <div class="login-demo">
       <div class="login-demo-title">Demo Accounts</div>
       <div class="demo-accounts">
         <div class="demo-account" onclick="fillDemo('alice@beefarmer.com','Pass1234!')">
@@ -53,7 +53,7 @@
           <span>clara@apiary.ke</span>
         </div>
       </div>
-    </div>
+    </div> -->
   </div>
 </div>
 
@@ -75,6 +75,7 @@
     <button class="nav-btn active" data-tab="dashboard" onclick="showTab('dashboard')">📊 <span>Dashboard</span></button>
     <button class="nav-btn" data-tab="hives" onclick="showTab('hives')">🐝 <span>Hives</span></button>
     <button class="nav-btn" onclick="location.href='/admin/'">⚙️ <span>Admin</span></button>
+    <button class="nav-btn" onclick="location.href='/django-admin/'" title="Django backend admin">🛠 <span>DB Admin</span></button>
     <div class="user-pill" id="userPill"></div>
     <button class="nav-btn" onclick="doLogout()">⬡ <span>Logout</span></button>
   </nav>
@@ -112,9 +113,11 @@
     <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
       <div class="sidebar-title">🔐 Session</div>
       <div id="sessionInfo" style="font-size:.75rem;color:var(--text-muted);line-height:2"></div>
+      <button class="btn btn-outline btn-full" style="margin-top:8px;font-size:.75rem"
+              onclick="openModal('changePasswordModal')">🔑 Change Password</button>
     </div>
 
-    <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+    <!-- <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
       <div class="sidebar-title">📡 API</div>
       <div style="font-size:.73rem;color:var(--text-muted);line-height:1.9">
         <div><code style="color:var(--amber)">/api/yields/</code></div>
@@ -124,7 +127,7 @@
         <div><code style="color:var(--amber)">/api/dashboard/</code></div>
         <div><code style="color:var(--amber)">/api/auth/login/</code></div>
       </div>
-    </div>
+    </div> -->
   </aside>
 
   <!-- Main content -->
@@ -339,6 +342,35 @@
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('hiveModal')">Cancel</button>
       <button class="btn btn-success" onclick="submitHive()">Add Hive</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="changePasswordModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h3>🔑 Change Password</h3>
+      <button class="modal-close" onclick="closeModal('changePasswordModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="changePwError" style="color:#C62828;font-size:.8rem;margin-bottom:8px"></div>
+      <div class="form-group">
+        <label>Current Password</label>
+        <input type="password" id="changePwCurrent" placeholder="Your current password" />
+      </div>
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="changePwNew" placeholder="Min 6 characters" />
+      </div>
+      <div class="form-group">
+        <label>Confirm New Password</label>
+        <input type="password" id="changePwConfirm" placeholder="Repeat new password"
+               onkeydown="if(event.key==='Enter')submitChangePassword()" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('changePasswordModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitChangePassword()">Change Password</button>
     </div>
   </div>
 </div>

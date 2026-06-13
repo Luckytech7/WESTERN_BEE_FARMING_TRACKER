@@ -3,44 +3,44 @@ from django.contrib.auth.hashers import make_password, check_password
 
 
 class Beekeeper(models.Model):
-    name = models.CharField(max_length=200)
-    email = models.EmailField(unique=True)
+    ROLE_CHOICES = [
+        ('admin',      'Admin'),
+        ('beekeeper',  'Beekeeper'),
+        ('farm_user',  'Farm User'),
+        ('viewer',     'Viewer'),
+    ]
+
+    name          = models.CharField(max_length=200)
+    email         = models.EmailField(unique=True)
     password_hash = models.CharField(max_length=255)
-    created_at = models.DateTimeField(auto_now_add=True)
+    role          = models.CharField(max_length=20, choices=ROLE_CHOICES, default='beekeeper')
+    created_at    = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['name']
-        indexes = [
-            models.Index(fields=['email'], name='beekeeper_email_idx'),
-        ]
+        indexes  = [models.Index(fields=['email'], name='beekeeper_email_idx')]
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.role})"
 
-    def set_password(self, raw_password):
-        self.password_hash = make_password(raw_password)
+    def set_password(self, raw):
+        self.password_hash = make_password(raw)
 
-    def check_password(self, raw_password):
-        return check_password(raw_password, self.password_hash)
-
-    @property
-    def farm_count(self):
-        return self.farms.count()
+    def check_password(self, raw):
+        return check_password(raw, self.password_hash)
 
 
 class Farm(models.Model):
-    name = models.CharField(max_length=200)
-    location = models.CharField(max_length=300)
+    name             = models.CharField(max_length=200)
+    location         = models.CharField(max_length=300)
     established_date = models.DateField()
-    beekeeper = models.ForeignKey(
+    beekeeper        = models.ForeignKey(
         Beekeeper, on_delete=models.CASCADE, related_name='farms'
     )
 
     class Meta:
         ordering = ['name']
-        indexes = [
-            models.Index(fields=['beekeeper'], name='farm_beekeeper_idx'),
-        ]
+        indexes  = [models.Index(fields=['beekeeper'], name='farm_beekeeper_idx')]
 
     def __str__(self):
         return f"{self.name} – {self.location}"
@@ -49,35 +49,34 @@ class Farm(models.Model):
 class Hive(models.Model):
     HIVE_TYPE_CHOICES = [
         ('langstroth', 'Langstroth'),
-        ('top_bar', 'Top-bar'),
-        ('warre', 'Warré'),
-        ('flow', 'Flow Hive'),
+        ('top_bar',    'Top-bar'),
+        ('log_hive',   'Log Hive'),
+        ('kenya_top',  'Kenya Top-bar'),
     ]
     QUEEN_STATUS_CHOICES = [
-        ('mated', 'Mated'),
-        ('new', 'New'),
-        ('replaced', 'Replaced'),
+        ('mated',     'Mated'),
+        ('new',       'New'),
+        ('replaced',  'Replaced'),
         ('queenless', 'Queenless'),
     ]
     STATUS_CHOICES = [
-        ('active', 'Active'),
+        ('active',   'Active'),
         ('inactive', 'Inactive'),
     ]
 
-    hive_number = models.CharField(max_length=50)
-    hive_type = models.CharField(max_length=50, choices=HIVE_TYPE_CHOICES, default='langstroth')
+    hive_number  = models.CharField(max_length=50)
+    hive_type    = models.CharField(max_length=50, choices=HIVE_TYPE_CHOICES, default='langstroth')
     install_date = models.DateField()
     queen_status = models.CharField(max_length=50, choices=QUEEN_STATUS_CHOICES, default='mated')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
-    farm = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='hives')
+    status       = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    farm         = models.ForeignKey(Farm, on_delete=models.CASCADE, related_name='hives')
 
     class Meta:
-        ordering = ['farm', 'hive_number']
+        ordering       = ['farm', 'hive_number']
         unique_together = [['farm', 'hive_number']]
         indexes = [
-            models.Index(fields=['farm'], name='hive_farm_idx'),
-            models.Index(fields=['status'], name='hive_status_idx'),
-            # Composite: most common filter is farm+status
+            models.Index(fields=['farm'],          name='hive_farm_idx'),
+            models.Index(fields=['status'],        name='hive_status_idx'),
             models.Index(fields=['farm', 'status'], name='hive_farm_status_idx'),
         ]
 
@@ -86,62 +85,74 @@ class Hive(models.Model):
 
 
 class Season(models.Model):
-    name = models.CharField(max_length=50, unique=True)
-    start_month = models.IntegerField()
-    end_month = models.IntegerField()
+    """
+    Season is now scoped per year.
+    e.g.  name='Dry Season', year=2025, start_month=12, end_month=2
+    Multiple seasons can exist for the same year.
+    """
+    SEASON_NAMES = [
+        ('Long Dry',   'Long Dry Season'),
+        ('Long Rain',  'Long Rain Season'),
+        ('Short Dry',  'Short Dry Season'),
+        ('Short Rain', 'Short Rain Season'),
+    ]
+
+    name        = models.CharField(max_length=50)
+    year        = models.IntegerField()
+    start_month = models.IntegerField()   # 1–12
+    end_month   = models.IntegerField()   # 1–12
 
     class Meta:
-        ordering = ['start_month']
+        ordering        = ['year', 'start_month']
+        unique_together = [['name', 'year']]
 
     def __str__(self):
-        return self.name
+        return f"{self.name} {self.year}"
 
     @classmethod
-    def get_for_month(cls, month: int):
-        for season in cls.objects.all():
+    def get_for_date(cls, date):
+        """Return the Season for a given date, matching year and month range."""
+        month = date.month
+        year  = date.year
+        for season in cls.objects.filter(year=year):
             if season.start_month <= season.end_month:
                 if season.start_month <= month <= season.end_month:
                     return season
             else:
+                # Wraps year boundary (e.g. Dec–Feb)
                 if month >= season.start_month or month <= season.end_month:
+                    return season
+        # Fallback: try adjacent year for wrap-around seasons
+        for season in cls.objects.filter(year=year - 1):
+            if season.start_month > season.end_month:
+                if month <= season.end_month:
                     return season
         return None
 
 
 class Harvest(models.Model):
-    HONEY_TYPE_CHOICES = [
-        ('wildflower', 'Wildflower'),
-        ('clover', 'Clover'),
-        ('acacia', 'Acacia'),
-        ('manuka', 'Manuka'),
-        ('buckwheat', 'Buckwheat'),
-        ('other', 'Other'),
-    ]
-
     harvest_date = models.DateField()
-    yield_kg = models.FloatField()
-    honey_type = models.CharField(max_length=50, choices=HONEY_TYPE_CHOICES, default='wildflower')
-    notes = models.TextField(blank=True, default='')
-    hive = models.ForeignKey(Hive, on_delete=models.CASCADE, related_name='harvests')
-    season = models.ForeignKey(
+    yield_kg     = models.FloatField()
+    notes        = models.TextField(blank=True, default='')
+    hive         = models.ForeignKey(Hive, on_delete=models.CASCADE, related_name='harvests')
+    season       = models.ForeignKey(
         Season, on_delete=models.SET_NULL,
         null=True, blank=True, related_name='harvests'
     )
 
     class Meta:
         ordering = ['-harvest_date']
-        indexes = [
-            models.Index(fields=['hive'], name='harvest_hive_idx'),
-            models.Index(fields=['season'], name='harvest_season_idx'),
-            models.Index(fields=['harvest_date'], name='harvest_date_idx'),
-            # Composite for the most common analytics query: date + season
-            models.Index(fields=['harvest_date', 'season'], name='harvest_date_season_idx'),
+        indexes  = [
+            models.Index(fields=['hive'],                    name='harvest_hive_idx'),
+            models.Index(fields=['season'],                  name='harvest_season_idx'),
+            models.Index(fields=['harvest_date'],            name='harvest_date_idx'),
+            models.Index(fields=['harvest_date', 'season'],  name='harvest_date_season_idx'),
         ]
 
     def __str__(self):
-        return f"{self.yield_kg}kg ({self.honey_type}) from {self.hive} on {self.harvest_date}"
+        return f"{self.yield_kg}kg from {self.hive} on {self.harvest_date}"
 
     def save(self, *args, **kwargs):
         if self.harvest_date:
-            self.season = Season.get_for_month(self.harvest_date.month)
+            self.season = Season.get_for_date(self.harvest_date)
         super().save(*args, **kwargs)

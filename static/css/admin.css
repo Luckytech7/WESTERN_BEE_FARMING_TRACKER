@@ -1,0 +1,56 @@
+/* Admin Panel — extends style.css with admin-specific overrides */
+
+.admin-layout {
+  display: grid;
+  grid-template-columns: 255px 1fr;
+  min-height: calc(100vh - 64px);
+}
+
+/* Wider nav for admin */
+.app-header .nav-links { gap: 4px; flex-wrap: wrap; }
+.app-header .nav-btn   { padding: 6px 11px; font-size: .78rem; }
+
+/* Season badge colours — Uganda seasons */
+.badge-long-rains  { background: #E8F5E9; color: #1B5E20; }
+.badge-long-dry    { background: #FFF8E1; color: #E65100; }
+.badge-short-rains { background: #E3F2FD; color: #1565C0; }
+.badge-short-dry   { background: #FBE9E7; color: #BF360C; }
+
+/* Role badge colours */
+.badge-admin      { background: #F3E5F5; color: #6A1B9A; }
+.badge-beekeeper  { background: #FFF8E1; color: #F57F17; }
+.badge-farm-user  { background: #E8F5E9; color: #2E7D32; }
+.badge-viewer     { background: #E3F2FD; color: #1565C0; }
+
+/* Action buttons inside table */
+.action-btn {
+  padding: 3px 10px;
+  border-radius: 5px;
+  font-size: .72rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid;
+  margin-right: 4px;
+  transition: all .15s;
+}
+.action-btn-delete {
+  border-color: #EF9A9A;
+  color: #C62828;
+  background: #FFF;
+}
+.action-btn-delete:hover { background: #FFEBEE; }
+
+/* Month display helper */
+.month-tag {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: .72rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+@media (max-width: 1024px) {
+  .admin-layout { grid-template-columns: 1fr; }
+}

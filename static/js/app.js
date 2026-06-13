@@ -105,6 +105,29 @@ async function doLogin() {
   }
 }
 
+async function submitChangePassword() {
+  const errEl   = document.getElementById('changePwError');
+  const current = document.getElementById('changePwCurrent').value;
+  const newPw   = document.getElementById('changePwNew').value;
+  const confirm = document.getElementById('changePwConfirm').value;
+  errEl.textContent = '';
+  if (!current || !newPw || !confirm) { errEl.textContent = 'All fields are required.'; return; }
+  if (newPw !== confirm) { errEl.textContent = 'New passwords do not match.'; return; }
+  if (newPw.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+  try {
+    const data = await apiFetch(`${API}/auth/change_password/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      body: JSON.stringify({ current_password: current, new_password: newPw, confirm_password: confirm }),
+    });
+    closeModal('changePasswordModal');
+    document.getElementById('changePwCurrent').value = '';
+    document.getElementById('changePwNew').value     = '';
+    document.getElementById('changePwConfirm').value = '';
+    toast(data.message || 'Password changed successfully.');
+  } catch (e) { errEl.textContent = e.message; }
+}
+
 async function doLogout() {
   try {
     await apiFetch(`${API}/auth/logout/`, {
