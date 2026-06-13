@@ -1,26 +1,39 @@
 /**
  * Western Bee Farming Tracker — Frontend
- * ========================================
- * Vanilla JS, no frameworks.
+ * Vanilla JS, no frameworks. Chart.js for visualisation.
  * Role-based UI: write-only elements hidden for 'viewer' role.
- * All API calls include cookies (credentials:'include') for session auth.
  */
 
 const API = '/api';
 let charts = {};
 let appState = {
-  farms: [], hives: [], role: 'viewer',
+  farms: [], role: 'viewer',
   selectedFarm: '', selectedYear: '',
 };
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
 async function apiFetch(url, opts = {}) {
-  const res = await fetch(url, {
+  // Extract headers and body separately so Content-Type is never overwritten
+  const { headers: extraHeaders = {}, body, method = 'GET', ...restOpts } = opts;
+
+  const fetchOpts = {
+    method,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...opts.headers },
-    ...opts,
-  });
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...extraHeaders,
+    },
+    ...restOpts,
+  };
+
+  if (body !== undefined) {
+    fetchOpts.body = typeof body === 'string' ? body : JSON.stringify(body);
+  }
+
+  const res = await fetch(url, fetchOpts);
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || err.detail || JSON.stringify(err) || `HTTP ${res.status}`);
@@ -50,6 +63,11 @@ function formatDate(d) {
 function openModal(id)  { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
+function getCookie(name) {
+  const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+  return v ? v[2] : '';
+}
+
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 function fillDemo(email, password) {
@@ -68,12 +86,10 @@ async function doLogin() {
   btn.disabled = true;
 
   try {
-    // getCookie for CSRF (Django requires it for POST)
-    const csrfToken = getCookie('csrftoken');
     const data = await apiFetch(`${API}/auth/login/`, {
       method: 'POST',
-      headers: { 'X-CSRFToken': csrfToken },
       body: JSON.stringify({ email, password }),
+      // No X-CSRFToken needed — login endpoint is csrf_exempt
     });
     appState.role = data.role;
     applyRoleUI(data);
@@ -81,8 +97,8 @@ async function doLogin() {
     document.getElementById('appScreen').style.display   = 'block';
     await initApp();
   } catch (err) {
-    errEl.textContent    = err.message;
-    errEl.style.display  = 'block';
+    errEl.textContent   = err.message;
+    errEl.style.display = 'block';
   } finally {
     btn.textContent = 'Sign In';
     btn.disabled    = false;
@@ -90,35 +106,29 @@ async function doLogin() {
 }
 
 async function doLogout() {
-  await apiFetch(`${API}/auth/logout/`, {
-    method: 'POST',
-    headers: { 'X-CSRFToken': getCookie('csrftoken') },
-  });
+  try {
+    await apiFetch(`${API}/auth/logout/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    });
+  } catch (_) {}
   location.reload();
 }
 
-function getCookie(name) {
-  const v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
-  return v ? v[2] : '';
-}
-
 function applyRoleUI(userData) {
-  // Show/hide write controls based on role
   if (userData.role === 'viewer') {
     document.body.classList.add('role-viewer');
   } else {
     document.body.classList.remove('role-viewer');
   }
-  // Update user pill in header
   document.getElementById('userPill').innerHTML =
     `${userData.beekeeper_name} &nbsp;${badgeHtml(userData.role)}`;
 
-  // Session info in sidebar
   document.getElementById('sessionInfo').innerHTML = `
     <div>👤 <strong>${userData.beekeeper_name}</strong></div>
     <div>🔐 Role: ${badgeHtml(userData.role)}</div>
     <div style="margin-top:4px;font-size:.7rem;color:#aaa">
-      ${userData.role === 'beekeeper' ? 'Viewing your farms only' : 'Viewing all data'}
+      ${userData.role === 'beekeeper' ? 'Your farms only' : 'All data'}
     </div>`;
 }
 
@@ -149,15 +159,15 @@ async function loadDashboardStats() {
 // ── Farms ─────────────────────────────────────────────────────────────────────
 
 async function loadFarms() {
-  appState.farms = await apiFetch(`${API}/farms/`);
-  const farms = appState.farms.results || appState.farms;
+  const resp  = await apiFetch(`${API}/farms/`);
+  appState.farms = resp.results || resp;
 
   ['filterFarm', 'formFarm', 'hiveFarm', 'hiveFarmModal'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const isFilter = id === 'filterFarm' || id === 'hiveFarm';
     el.innerHTML = `<option value="">${isFilter ? 'All Farms' : 'Select farm…'}</option>`;
-    farms.forEach(f => {
+    appState.farms.forEach(f => {
       el.innerHTML += `<option value="${f.id}">${f.name}</option>`;
     });
   });
@@ -168,19 +178,19 @@ async function loadHivesForFarm(farmId, targetSelectId) {
   if (!el) return;
   if (!farmId) { el.innerHTML = '<option value="">Select farm first</option>'; return; }
   el.innerHTML = '<option value="">Loading…</option>';
-  const data  = await apiFetch(`${API}/hives/?farm_id=${farmId}&status=active`);
-  const hives = data.results || data;
+  const resp  = await apiFetch(`${API}/hives/?farm_id=${farmId}&status=active`);
+  const hives = resp.results || resp;
   el.innerHTML = '<option value="">Select hive…</option>';
   hives.forEach(h => {
     el.innerHTML += `<option value="${h.id}">Hive ${h.hive_number} (${h.hive_type})</option>`;
   });
 }
 
-// Cascade farm → hive in Add Harvest modal
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('formFarm').addEventListener('change', e => {
-    loadHivesForFarm(e.target.value, 'formHive');
-  });
+  const formFarm = document.getElementById('formFarm');
+  if (formFarm) {
+    formFarm.addEventListener('change', e => loadHivesForFarm(e.target.value, 'formHive'));
+  }
 });
 
 // ── Seasonal yield chart ──────────────────────────────────────────────────────
@@ -210,7 +220,6 @@ async function loadSeasonalChart() {
     if (d) { labels.push(s); totals.push(d.total_kg); avgs.push(d.avg_kg); bgs.push(clrMap[s]); }
   });
 
-  // Season summary row
   let html = '';
   order.forEach(s => {
     const d = data.yields_by_season[s];
@@ -260,8 +269,8 @@ async function loadHoneytypeChart() {
   if (appState.selectedFarm) url += `&farm_id=${appState.selectedFarm}`;
   if (appState.selectedYear) url += `&year=${appState.selectedYear}`;
 
-  const data    = await apiFetch(url);
-  const results = data.results || data;
+  const resp    = await apiFetch(url);
+  const results = resp.results || resp;
   const counts  = {};
   results.forEach(h => { counts[h.honey_type] = (counts[h.honey_type] || 0) + h.yield_kg; });
   const labels  = Object.keys(counts);
@@ -294,8 +303,8 @@ async function loadHarvestTable() {
   if (appState.selectedFarm) url += `farm_id=${appState.selectedFarm}&`;
   if (appState.selectedYear) url += `year=${appState.selectedYear}&`;
 
-  const data = await apiFetch(url);
-  const rows = data.results || data;
+  const resp = await apiFetch(url);
+  const rows = resp.results || resp;
 
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-icon">🍯</div><p>No harvests found.</p></div></td></tr>';
@@ -310,7 +319,7 @@ async function loadHarvestTable() {
       <td><strong>${h.yield_kg} kg</strong></td>
       <td>${badgeHtml(h.honey_type)}</td>
       <td>${h.season_name ? badgeHtml(h.season_name) : '—'}</td>
-      <td style="color:#9E9E9E;font-size:.78rem;max-width:180px;overflow:hidden;text-overflow:ellipsis">${h.notes || '—'}</td>
+      <td style="color:#9E9E9E;font-size:.78rem">${h.notes || '—'}</td>
     </tr>`).join('');
 
   document.getElementById('harvestCount').textContent = `${rows.length} records`;
@@ -325,8 +334,8 @@ async function loadHivesTable() {
   let url = `${API}/hives/?`;
   if (farmId) url += `farm_id=${farmId}&`;
 
-  const data = await apiFetch(url);
-  const rows = data.results || data;
+  const resp = await apiFetch(url);
+  const rows = resp.results || resp;
 
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">🐝</div><p>No hives found.</p></div></td></tr>';
@@ -369,11 +378,9 @@ function openAddHarvest() {
   document.getElementById('harvestForm').reset();
   document.getElementById('formHive').innerHTML = '<option value="">Select farm first</option>';
   document.getElementById('harvestError').textContent = '';
-  // Pre-populate farm select
-  const farms = appState.farms.results || appState.farms;
   const sel = document.getElementById('formFarm');
   sel.innerHTML = '<option value="">Select farm…</option>';
-  farms.forEach(f => sel.innerHTML += `<option value="${f.id}">${f.name}</option>`);
+  appState.farms.forEach(f => sel.innerHTML += `<option value="${f.id}">${f.name}</option>`);
   openModal('harvestModal');
 }
 
@@ -390,12 +397,15 @@ async function submitHarvest() {
   if (!hiveId || !dateVal || isNaN(yieldKg)) {
     errEl.textContent = 'Please fill in all required fields.'; return;
   }
+
   try {
     await apiFetch(`${API}/harvests/`, {
       method: 'POST',
       headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ hive: parseInt(hiveId), harvest_date: dateVal,
-        yield_kg: yieldKg, honey_type: honeyType, notes }),
+      body: JSON.stringify({
+        hive: parseInt(hiveId), harvest_date: dateVal,
+        yield_kg: yieldKg, honey_type: honeyType, notes,
+      }),
     });
     closeModal('harvestModal');
     toast('Harvest recorded successfully!');
@@ -408,11 +418,9 @@ async function submitHarvest() {
 function openAddHive() {
   document.getElementById('hiveForm').reset();
   document.getElementById('hiveError').textContent = '';
-  // Populate farm select in modal
-  const farms = appState.farms.results || appState.farms;
   const sel = document.getElementById('hiveFarmModal');
   sel.innerHTML = '<option value="">Select farm…</option>';
-  farms.forEach(f => sel.innerHTML += `<option value="${f.id}">${f.name}</option>`);
+  appState.farms.forEach(f => sel.innerHTML += `<option value="${f.id}">${f.name}</option>`);
   openModal('hiveModal');
 }
 
@@ -429,13 +437,16 @@ async function submitHive() {
   if (!farmId || !hiveNumber || !installDate) {
     errEl.textContent = 'Please fill in all required fields.'; return;
   }
+
   try {
     await apiFetch(`${API}/hives/`, {
       method: 'POST',
       headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ farm: parseInt(farmId), hive_number: hiveNumber,
+      body: JSON.stringify({
+        farm: parseInt(farmId), hive_number: hiveNumber,
         hive_type: hiveType, install_date: installDate,
-        queen_status: queenStatus, status: 'active' }),
+        queen_status: queenStatus, status: 'active',
+      }),
     });
     closeModal('hiveModal');
     toast('Hive added successfully!');
@@ -453,12 +464,12 @@ function showTab(tab) {
   if (tab === 'hives') loadHivesTable();
 }
 
-// ── Check existing session on page load ───────────────────────────────────────
+// ── Session check on page load ────────────────────────────────────────────────
+
 window.addEventListener('DOMContentLoaded', async () => {
   try {
     const session = await apiFetch(`${API}/auth/whoami/`);
     if (session.beekeeper_id) {
-      // Already logged in — skip login screen
       appState.role = session.role;
       applyRoleUI({ ...session, beekeeper_name: session.beekeeper_name });
       document.getElementById('loginScreen').style.display = 'none';
@@ -466,6 +477,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       await initApp();
     }
   } catch (_) {
-    // Not logged in — show login screen (default state)
+    // Not logged in — show login screen
   }
 });

@@ -17,11 +17,12 @@ from django.db.models import Sum, Count, Avg, Max
 from django.db.models.functions import ExtractYear
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
+from django.http import JsonResponse
+from rest_framework.parsers import JSONParser
+from rest_framework.decorators import api_view, action, parser_classes
 import json
 
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view, action
 from rest_framework.response import Response
 
 from .models import Beekeeper, Farm, Hive, Season, Harvest
@@ -44,40 +45,38 @@ def index(request):
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 @csrf_exempt
-@api_view(['POST'])
 def login_view(request):
     """
     POST /api/auth/login/
-    Body: { "email": "...", "password": "..." }
-    Sets session: role, beekeeper_id, beekeeper_name
-
-    Role assignment:
-      email ending in @admin.bee  → admin
-      any valid beekeeper email   → beekeeper
+    Plain Django view — bypasses DRF parser to avoid Content-Type negotiation issues.
+    Reads raw body and parses JSON directly, accepting any Content-Type.
     """
-    email    = request.data.get('email', '').strip().lower()
-    password = request.data.get('password', '')
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed.'}, status=405)
+
+    # Parse body regardless of Content-Type header
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Invalid JSON body.'}, status=400)
+
+    email    = str(data.get('email', '')).strip().lower()
+    password = str(data.get('password', ''))
 
     if not email or not password:
-        return Response({'error': 'Email and password are required.'},
-                        status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'error': 'Email and password are required.'}, status=400)
 
-    # Sanitize: reject oversized inputs
     if len(email) > 254 or len(password) > 128:
-        return Response({'error': 'Invalid input length.'},
-                        status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'error': 'Invalid input length.'}, status=400)
 
     try:
         bk = Beekeeper.objects.get(email=email)
     except Beekeeper.DoesNotExist:
-        return Response({'error': 'Invalid credentials.'},
-                        status=status.HTTP_401_UNAUTHORIZED)
+        return JsonResponse({'error': 'Invalid credentials.'}, status=401)
 
     if not bk.check_password(password):
-        return Response({'error': 'Invalid credentials.'},
-                        status=status.HTTP_401_UNAUTHORIZED)
+        return JsonResponse({'error': 'Invalid credentials.'}, status=401)
 
-    # Assign role
     role = ROLE_ADMIN if email.endswith('@admin.bee') else ROLE_BEEKEEPER
 
     request.session['role'] = role
@@ -85,7 +84,7 @@ def login_view(request):
     request.session['beekeeper_name'] = bk.name
     request.session.modified = True
 
-    return Response({
+    return JsonResponse({
         'message': f'Welcome, {bk.name}!',
         'role': role,
         'beekeeper_id': bk.id,
