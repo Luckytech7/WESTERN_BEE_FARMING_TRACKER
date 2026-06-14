@@ -131,6 +131,8 @@ source venv/bin/activate          # Windows: venv\Scripts\activate
 
 pip install -r requirements.txt
 cp .env.example .env
+#for windows use 
+copy .env.example .env
 
 python manage.py migrate          # applies schema + all 9 indexes
 python seed_data.py               # 6 beekeepers, 8 farms, hives, harvests across 2024-2025
