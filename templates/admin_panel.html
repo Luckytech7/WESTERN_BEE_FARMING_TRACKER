@@ -89,6 +89,7 @@
       <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="openModal('addFarmModal')">🏡 Add Farm</button>
       <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="openModal('addSeasonModal')">📅 Add Season</button>
       <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="openModal('addHiveModal')">🐝 Add Hive</button>
+      <button class="btn btn-outline btn-full" style="margin-top:8px" onclick="openModal('addHarvestModal')">🍯 Add Harvest</button>
     </div>
     <div class="sidebar-section" style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
       <div class="sidebar-title">🔐 Session</div>
@@ -203,11 +204,12 @@
         <div class="panel-header">
           <span class="panel-title">🍯 Harvest Records</span>
           <span id="harvestCountBadge" style="font-size:.78rem;color:var(--text-muted)"></span>
+          <button class="btn btn-success btn-sm" onclick="openModal('addHarvestModal')">+ Add Harvest</button>
         </div>
         <div style="overflow-x:auto">
           <table class="data-table">
-            <thead><tr><th>Date</th><th>Farm</th><th>Hive</th><th>Yield (kg)</th><th>Season</th><th>Notes</th></tr></thead>
-            <tbody id="harvestsBody"><tr><td colspan="6"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr></tbody>
+            <thead><tr><th>Date</th><th>Farm</th><th>Hive</th><th>Yield (kg)</th><th>Season</th><th>Notes</th><th>Actions</th></tr></thead>
+            <tbody id="harvestsBody"><tr><td colspan="7"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -271,12 +273,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>Season Name *</label>
-          <select id="seasonName">
-            <option value="Long Rains">Long Rains</option>
-            <option value="Long Dry">Long Dry</option>
-            <option value="Short Rains">Short Rains</option>
-            <option value="Short Dry">Short Dry</option>
-          </select>
+          <input type="text" id="seasonName" placeholder="e.g. Long Rains"/>
         </div>
         <div class="form-group"><label>Year *</label><input type="number" id="seasonYear" min="2020" max="2035" placeholder="e.g. 2026"/></div>
       </div>
@@ -332,6 +329,29 @@
   </div>
 </div>
 
+<!-- Add Harvest -->
+<div class="modal-overlay" id="addHarvestModal">
+  <div class="modal">
+    <div class="modal-header"><h3>🍯 Add Harvest</h3><button class="modal-close" onclick="closeModal('addHarvestModal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Farm *</label><select id="harvestFarmSel" onchange="filterHarvestHives()"><option value="">Loading farms…</option></select></div>
+        <div class="form-group"><label>Hive *</label><select id="harvestHiveSel"><option value="">Select farm first…</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Date *</label><input type="date" id="harvestDate"/></div>
+        <div class="form-group"><label>Yield (kg) *</label><input type="number" id="harvestYield" min="0.001" max="500" step="0.001" placeholder="e.g. 12.5"/></div>
+      </div>
+      <div class="form-group"><label>Notes</label><textarea id="harvestNotes" rows="3" placeholder="Optional notes…" style="width:100%;resize:vertical"></textarea></div>
+      <div class="form-error" id="harvestError"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('addHarvestModal')">Cancel</button>
+      <button class="btn btn-success" onclick="submitHarvest()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- Delete confirm -->
 <div class="modal-overlay" id="deleteModal">
   <div class="modal" style="max-width:380px">
@@ -371,6 +391,6 @@
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
-<script src="{% static 'js/admin.js' %}"></script>
+<script src="{% static 'js/admin.js' %}?v={% now "U" %}"></script>
 </body>
 </html>

@@ -90,13 +90,6 @@ class Season(models.Model):
     e.g.  name='Dry Season', year=2025, start_month=12, end_month=2
     Multiple seasons can exist for the same year.
     """
-    SEASON_NAMES = [
-        ('Long Dry',   'Long Dry Season'),
-        ('Long Rain',  'Long Rain Season'),
-        ('Short Dry',  'Short Dry Season'),
-        ('Short Rain', 'Short Rain Season'),
-    ]
-
     name        = models.CharField(max_length=50)
     year        = models.IntegerField()
     start_month = models.IntegerField()   # 1–12
