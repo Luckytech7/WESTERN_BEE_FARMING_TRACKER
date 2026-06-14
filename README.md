@@ -4,16 +4,6 @@ A complete, data-driven MVC web application for tracking apiculture production a
 
 **Stack:** Django 4.x · Django REST Framework · SQLite (PostgreSQL-ready) · Chart.js · Vanilla JS
 
----
-
-## Grading Criteria Coverage
-
-| Criterion | Weight | Implementation |
-|---|---|---|
-| MVC Code & DB Quality | 35% | 5-entity relational schema, 9 named DB indexes, `select_related()` on every FK traversal eliminating N+1 |
-| Defensive Security | 25% | Session-based RBAC (4 roles), object-level data scoping, PBKDF2-hashed passwords, input sanitization in serializers, CSRF tokens on all POSTs |
-| Analytics Fabric | 20% | Single `GROUP BY` aggregate query for seasonal yields, composite index on `(harvest_date, season)`, Chart.js bar + donut |
-| Deliverable Compliance | 20% | README + API docs + Render deployment guide + seeded DB |
 
 ---
 
