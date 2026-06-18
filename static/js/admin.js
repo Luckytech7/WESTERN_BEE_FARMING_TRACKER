@@ -406,18 +406,33 @@ async function submitSeason() {
 // ── Harvests CRUD ─────────────────────────────────────────────────────────────
 
 async function populateHarvestModal() {
-  const farmSel = document.getElementById('harvestFarmSel');
-  farmSel.innerHTML = '<option value="">Loading farms…</option>';
+  const farmSel   = document.getElementById('harvestFarmSel');
+  const seasonSel = document.getElementById('harvestSeasonSel');
+  farmSel.innerHTML   = '<option value="">Loading farms…</option>';
+  seasonSel.innerHTML = '<option value="">Loading seasons…</option>';
   document.getElementById('harvestHiveSel').innerHTML = '<option value="">Select farm first…</option>';
-  try {
-    const resp = await apiFetch(`${API}/farms/`);
-    const farms = resp.results || resp;
+
+  const [farmsResp, seasonsResp] = await Promise.all([
+    apiFetch(`${API}/farms/`).catch(e => { console.error('farms fetch error:', e); return null; }),
+    apiFetch(`${API}/seasons/`).catch(e => { console.error('seasons fetch error:', e); return null; }),
+  ]);
+
+  if (farmsResp) {
+    const farms = farmsResp.results || farmsResp;
     adminState.farms = farms;
     farmSel.innerHTML = '<option value="">Select farm…</option>';
     farms.forEach(f => farmSel.innerHTML += `<option value="${f.id}">${f.name}</option>`);
-  } catch(e) {
-    console.error('populateHarvestModal farms error:', e);
-    farmSel.innerHTML = `<option value="">Error: ${e.message}</option>`;
+  } else {
+    farmSel.innerHTML = '<option value="">Failed to load farms</option>';
+  }
+
+  if (seasonsResp) {
+    const seasons = seasonsResp.results || seasonsResp;
+    adminState.seasons = seasons;
+    seasonSel.innerHTML = '<option value="">Select season…</option>';
+    seasons.forEach(s => seasonSel.innerHTML += `<option value="${s.id}">${s.name} ${s.year}</option>`);
+  } else {
+    seasonSel.innerHTML = '<option value="">Failed to load seasons</option>';
   }
 }
 
@@ -439,16 +454,20 @@ async function filterHarvestHives() {
 }
 
 async function submitHarvest() {
-  const errEl = document.getElementById('harvestError'); errEl.textContent = '';
-  const hiveId = document.getElementById('harvestHiveSel').value;
-  const dt     = document.getElementById('harvestDate').value;
-  const yield_ = parseFloat(document.getElementById('harvestYield').value);
-  const notes  = document.getElementById('harvestNotes').value.trim();
-  if (!hiveId || !dt || !yield_) { errEl.textContent = 'Hive, Date and Yield are required.'; return; }
+  const errEl    = document.getElementById('harvestError'); errEl.textContent = '';
+  const hiveId   = document.getElementById('harvestHiveSel').value;
+  const seasonId = document.getElementById('harvestSeasonSel').value;
+  const dt       = document.getElementById('harvestDate').value;
+  const yield_   = parseFloat(document.getElementById('harvestYield').value);
+  const notes    = document.getElementById('harvestNotes').value.trim();
+  if (!hiveId || !seasonId || !dt || !yield_) {
+    errEl.textContent = 'Farm, Hive, Season, Date and Yield are all required.'; return;
+  }
   try {
     await apiFetch(`${API}/harvests/`, { method: 'POST',
       headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ hive: parseInt(hiveId), harvest_date: dt, yield_kg: yield_, notes }) });
+      body: JSON.stringify({ hive: parseInt(hiveId), season: parseInt(seasonId),
+                             harvest_date: dt, yield_kg: yield_, notes }) });
     closeModal('addHarvestModal');
     document.getElementById('harvestYield').value = '';
     document.getElementById('harvestNotes').value = '';

@@ -146,6 +146,6 @@ class Harvest(models.Model):
         return f"{self.yield_kg}kg from {self.hive} on {self.harvest_date}"
 
     def save(self, *args, **kwargs):
-        if self.harvest_date:
+        if self.harvest_date and self.season is None:
             self.season = Season.get_for_date(self.harvest_date)
         super().save(*args, **kwargs)

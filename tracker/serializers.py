@@ -83,7 +83,7 @@ class HarvestSerializer(serializers.ModelSerializer):
         fields = ['id', 'harvest_date', 'yield_kg', 'notes',
                   'hive', 'hive_number', 'farm_id', 'farm_name',
                   'season', 'season_name']
-        read_only_fields = ['season']
+        read_only_fields = []
 
     def get_season_name(self, obj):
         if obj.season:
