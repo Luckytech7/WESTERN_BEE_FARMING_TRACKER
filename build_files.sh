@@ -2,7 +2,7 @@
 set -e
 
 echo "Installing dependencies..."
-pip3 install -r requirements.txt
+uv pip install --system -r requirements.txt
 
 echo "Running migrations..."
 python3 manage.py migrate --noinput
