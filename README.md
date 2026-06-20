@@ -141,6 +141,8 @@ python manage.py runserver
 
 ---
 
+
+
 ## API Reference
 
 | Method | Endpoint | Auth Required | Description |
@@ -211,8 +213,10 @@ config/urls.py ──► tracker/urls.py (DRF Router)
 
 | Entity | Count | Notes |
 |---|---|---|
-| Beekeepers | 3 | Alice, Bernard, Clara |
-| Farms | 6 | 2 per beekeeper, Kenya locations |
-| Hives | 37 | 5–8 per farm, mix of types |
-| Harvests | 64 | Across 2024–2025, all seasons |
-| Total Yield | ~1,235 kg | Realistic seasonal distribution |
+
+| Beekeepers | 6 | 1 admin, 3 beekeeper, 2 farm_user — Western Uganda |
+| Farms | 8 | 2 per beekeeper, Uganda locations |
+| Hives | ~50 | 5–8 per farm, mix of Langstroth/Top-bar/Log/Kenya types |
+| Seasons | 12 | 4 seasons × 3 years (2024–2026) |
+| Harvests | ~200 | Across 2024–2025, all 4 Uganda seasons |
+| Total Yield | ~3,000 kg | Realistic seasonal distribution |
