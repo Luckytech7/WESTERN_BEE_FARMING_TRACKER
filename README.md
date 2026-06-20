@@ -6,17 +6,6 @@ A complete, data-driven MVC web application for tracking apiculture production a
 
 ---
 
-## Grading Criteria Coverage
-
-| Criterion | Weight | Implementation |
-|---|---|---|
-| MVC Code & DB Quality | 35% | 5-entity relational schema, 9 named DB indexes, `select_related()` on every FK traversal eliminating N+1 |
-| Defensive Security | 25% | Session-based RBAC (admin/beekeeper/viewer), PBKDF2-hashed passwords, input sanitization in serializers, CSRF tokens on all POSTs |
-| Analytics Fabric | 20% | Single `GROUP BY` aggregate query for seasonal yields, composite index on `(harvest_date, season)`, Chart.js bar + donut |
-| Deliverable Compliance | 20% | README + API docs + Render deployment guide + seeded DB |
-
----
-
 ## Database Schema
 
 ```
