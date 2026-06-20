@@ -1,14 +1,13 @@
 #!/bin/bash
-echo "Installing dependencies..."
-python3.12 -m pip install -r requirements.txt
+set -e
 
-echo "Collecting static files..."
-python3.12 manage.py collectstatic --noinput --clear
+echo "Installing dependencies..."
+pip3 install -r requirements.txt
 
 echo "Running migrations..."
-python3.12 manage.py migrate --noinput
+python3 manage.py migrate --noinput
 
-echo "Seeding data and creating superuser..."
-python3.12 manage.py setup_deploy
+echo "Collecting static files..."
+python3 manage.py collectstatic --noinput --clear
 
 echo "Build complete."
