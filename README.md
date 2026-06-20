@@ -131,11 +131,12 @@ python manage.py runserver
 ### Demo Login Credentials
 
 | Email | Password | Role |
-|---|---|---|
-| alice@beefarmer.com | Pass1234! | beekeeper |
-| bernard@hiveworks.co | Honey#99 | beekeeper |
-| clara@apiary.ke | Clover@22 | beekeeper |
-
+| asiimwe@rwenzoriapiary.ug | Pass1234! | admin |
+| birungi@kasesehives.ug | Honey#99 | beekeeper |
+| tumwebaze@fortportalbees.ug | Miel@2024 | beekeeper |
+| nakamya@kibaleforest.ug | Bees@2025 | beekeeper |
+| byaruhanga@mbararahive.ug | Hive#2024 | farm_user |
+| atuhaire@busongora.ug | Farm@2025 | farm_user |
 > The db.sqlite3 is pre-seeded — no `seed_data.py` run needed if you download the ZIP.
 
 ---
