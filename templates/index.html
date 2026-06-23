@@ -192,7 +192,13 @@
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">📋 Harvest Log</span>
-          <span id="harvestCount" style="font-size:.78rem;color:var(--text-muted)"></span>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span id="harvestCount" style="font-size:.78rem;color:var(--text-muted)"></span>
+            <div class="export-group">
+              <button class="btn btn-sm btn-xl"  onclick="exportHarvests('xlsx')" title="Export to Excel">↓ Excel</button>
+              <button class="btn btn-sm btn-pdf" onclick="exportHarvests('pdf')"  title="Export to PDF">↓ PDF</button>
+            </div>
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="data-table">
@@ -220,6 +226,10 @@
               <option value="">All Farms</option>
             </select>
             <button class="btn btn-success btn-sm write-only" onclick="openAddHive()">+ Add Hive</button>
+            <div class="export-group">
+              <button class="btn btn-sm btn-xl"  onclick="exportHives('xlsx')" title="Export to Excel">↓ Excel</button>
+              <button class="btn btn-sm btn-pdf" onclick="exportHives('pdf')"  title="Export to PDF">↓ PDF</button>
+            </div>
           </div>
         </div>
         <div style="overflow-x:auto">

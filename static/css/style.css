@@ -103,6 +103,11 @@ body { font-family: var(--font); background: var(--bg); color: var(--text); min-
 .btn-outline:hover  { border-color: var(--amber); color: var(--amber); }
 .btn-sm   { padding: 5px 12px; font-size: .78rem; }
 .btn-full { width: 100%; justify-content: center; }
+.btn-xl   { background: #1B7A3D; color: #fff; }
+.btn-xl:hover   { background: #145C2D; }
+.btn-pdf  { background: #B71C1C; color: #fff; }
+.btn-pdf:hover  { background: #8B0000; }
+.export-group { display: flex; gap: 4px; align-items: center; }
 
 /* ── Main content ── */
 .main-content { padding: 24px; overflow-y: auto; }

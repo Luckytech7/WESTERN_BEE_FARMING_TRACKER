@@ -531,6 +531,101 @@ async function confirmDelete() {
   } catch(e) { toast(e.message, 'error'); }
 }
 
+// ── Export ────────────────────────────────────────────────────────────────────
+
+function exportAdmin(resource, fmt) {
+  const p = new URLSearchParams({ resource, export_format: fmt });
+  const year   = document.getElementById('adminYear').value;
+  const farmId = document.getElementById('adminFarm').value;
+  if (year   && ['harvests','seasons'].includes(resource)) p.set('year',    year);
+  if (farmId && ['hives','harvests'].includes(resource))   p.set('farm_id', farmId);
+  window.open(`/api/export/?${p}`, '_blank');
+}
+
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+
+let auditPage = 1;
+let auditDebounceTimer = null;
+
+const AUDIT_ACTION_ICONS = {
+  create: '➕', update: '✏️', delete: '🗑️',
+  login: '🔓', logout: '🔒', export: '📥', password_change: '🔑',
+};
+const AUDIT_ACTION_COLORS = {
+  create: '#2E7D32', update: '#1565C0', delete: '#C62828',
+  login: '#6A1B9A', logout: '#455A64', export: '#00695C', password_change: '#E65100',
+};
+
+function debounceAudit() {
+  clearTimeout(auditDebounceTimer);
+  auditDebounceTimer = setTimeout(() => { auditPage = 1; loadAuditLog(); }, 350);
+}
+
+function resetAuditFilters() {
+  document.getElementById('auditAction').value   = '';
+  document.getElementById('auditResource').value = '';
+  document.getElementById('auditActor').value    = '';
+  document.getElementById('auditFrom').value     = '';
+  document.getElementById('auditTo').value       = '';
+  auditPage = 1;
+  loadAuditLog();
+}
+
+async function loadAuditLog() {
+  const tbody = document.getElementById('auditBody');
+  tbody.innerHTML = '<tr><td colspan="8"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr>';
+
+  const params = new URLSearchParams({ page: auditPage, page_size: 100 });
+  const action   = document.getElementById('auditAction').value;
+  const resource = document.getElementById('auditResource').value;
+  const actor    = document.getElementById('auditActor').value.trim();
+  const from     = document.getElementById('auditFrom').value;
+  const to       = document.getElementById('auditTo').value;
+  if (action)   params.set('action',    action);
+  if (resource) params.set('resource',  resource);
+  if (actor)    params.set('actor',     actor);
+  if (from)     params.set('date_from', from);
+  if (to)       params.set('date_to',   to);
+
+  try {
+    const data = await apiFetch(`${API}/audit/?${params}`);
+    document.getElementById('auditTotal').textContent = `${data.total.toLocaleString()} entries`;
+
+    if (!data.results.length) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">📋</div><p>No audit entries found.</p></div></td></tr>';
+      document.getElementById('auditPager').innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = data.results.map(e => {
+      const icon  = AUDIT_ACTION_ICONS[e.action]  || '•';
+      const color = AUDIT_ACTION_COLORS[e.action] || '#555';
+      return `
+      <tr>
+        <td style="white-space:nowrap;font-size:.78rem;color:var(--text-muted)">${e.timestamp}</td>
+        <td><strong>${e.actor_name || '—'}</strong></td>
+        <td>${e.actor_role ? badgeHtml(e.actor_role) : '—'}</td>
+        <td><span style="color:${color};font-weight:700;font-size:.8rem">${icon} ${e.action.replace('_',' ')}</span></td>
+        <td style="font-size:.8rem">${e.resource || '—'}</td>
+        <td style="font-size:.78rem;color:var(--text-muted)">${e.resource_id || '—'}</td>
+        <td style="font-size:.78rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.detail}">${e.detail || '—'}</td>
+        <td style="font-size:.75rem;color:var(--text-muted)">${e.ip_address || '—'}</td>
+      </tr>`;
+    }).join('');
+
+    // Pagination controls
+    const totalPages = Math.ceil(data.total / data.page_size);
+    const pager = document.getElementById('auditPager');
+    if (totalPages <= 1) { pager.innerHTML = ''; return; }
+    pager.innerHTML = `
+      <button class="btn btn-outline btn-sm" onclick="auditPage=${Math.max(1,auditPage-1)};loadAuditLog()" ${auditPage<=1?'disabled':''}>← Prev</button>
+      <span>Page ${auditPage} of ${totalPages}</span>
+      <button class="btn btn-outline btn-sm" onclick="auditPage=${Math.min(totalPages,auditPage+1)};loadAuditLog()" ${auditPage>=totalPages?'disabled':''}>Next →</button>`;
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="color:#C62828;padding:20px">Error: ${e.message}</td></tr>`;
+  }
+}
+
 // ── Tab navigation ────────────────────────────────────────────────────────────
 
 function showTab(tab) {
@@ -544,6 +639,7 @@ function showTab(tab) {
     hives:      loadHives,
     seasons:    loadSeasons,
     harvests:   loadHarvests,
+    audit:      loadAuditLog,
     overview:   () => { loadSeasonalChart(); loadFarmChart(); },
   };
   if (loaders[tab]) loaders[tab]();

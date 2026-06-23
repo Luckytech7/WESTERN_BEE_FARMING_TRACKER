@@ -57,6 +57,7 @@
     <button class="nav-btn" data-tab="hives"             onclick="showTab('hives')">🐝 Hives</button>
     <button class="nav-btn" data-tab="seasons"           onclick="showTab('seasons')">📅 Seasons</button>
     <button class="nav-btn" data-tab="harvests"          onclick="showTab('harvests')">🍯 Harvests</button>
+    <button class="nav-btn" data-tab="audit"             onclick="showTab('audit')">📋 Audit Log</button>
     <div class="user-pill" id="userPill"></div>
     <button class="nav-btn" onclick="location.href='/'">🌐 Dashboard</button>
     <button class="nav-btn" onclick="location.href='/django-admin/'" title="Django backend admin">🛠 DB Admin</button>
@@ -139,7 +140,11 @@
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">👨‍🌾 Beekeepers</span>
-          <button class="btn btn-success btn-sm" onclick="openModal('addBeekeeperModal')">+ Add</button>
+          <div class="export-group">
+            <button class="btn btn-success btn-sm" onclick="openModal('addBeekeeperModal')">+ Add</button>
+            <button class="btn btn-sm btn-xl"  onclick="exportAdmin('beekeepers','xlsx')" title="Export to Excel">↓ Excel</button>
+            <button class="btn btn-sm btn-pdf" onclick="exportAdmin('beekeepers','pdf')"  title="Export to PDF">↓ PDF</button>
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="data-table">
@@ -155,7 +160,11 @@
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">🏡 Farms</span>
-          <button class="btn btn-success btn-sm" onclick="openModal('addFarmModal')">+ Add</button>
+          <div class="export-group">
+            <button class="btn btn-success btn-sm" onclick="openModal('addFarmModal')">+ Add</button>
+            <button class="btn btn-sm btn-xl"  onclick="exportAdmin('farms','xlsx')" title="Export to Excel">↓ Excel</button>
+            <button class="btn btn-sm btn-pdf" onclick="exportAdmin('farms','pdf')"  title="Export to PDF">↓ PDF</button>
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="data-table">
@@ -171,7 +180,11 @@
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">🐝 Hives</span>
-          <button class="btn btn-success btn-sm" onclick="openModal('addHiveModal')">+ Add</button>
+          <div class="export-group">
+            <button class="btn btn-success btn-sm" onclick="openModal('addHiveModal')">+ Add</button>
+            <button class="btn btn-sm btn-xl"  onclick="exportAdmin('hives','xlsx')" title="Export to Excel">↓ Excel</button>
+            <button class="btn btn-sm btn-pdf" onclick="exportAdmin('hives','pdf')"  title="Export to PDF">↓ PDF</button>
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="data-table">
@@ -187,7 +200,11 @@
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">📅 Seasons</span>
-          <button class="btn btn-success btn-sm" onclick="openModal('addSeasonModal')">+ Add Season</button>
+          <div class="export-group">
+            <button class="btn btn-success btn-sm" onclick="openModal('addSeasonModal')">+ Add Season</button>
+            <button class="btn btn-sm btn-xl"  onclick="exportAdmin('seasons','xlsx')" title="Export to Excel">↓ Excel</button>
+            <button class="btn btn-sm btn-pdf" onclick="exportAdmin('seasons','pdf')"  title="Export to PDF">↓ PDF</button>
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="data-table">
@@ -203,8 +220,14 @@
       <div class="panel">
         <div class="panel-header">
           <span class="panel-title">🍯 Harvest Records</span>
-          <span id="harvestCountBadge" style="font-size:.78rem;color:var(--text-muted)"></span>
-          <button class="btn btn-success btn-sm" onclick="openModal('addHarvestModal')">+ Add Harvest</button>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span id="harvestCountBadge" style="font-size:.78rem;color:var(--text-muted)"></span>
+            <div class="export-group">
+              <button class="btn btn-success btn-sm" onclick="openModal('addHarvestModal')">+ Add Harvest</button>
+              <button class="btn btn-sm btn-xl"  onclick="exportAdmin('harvests','xlsx')" title="Export to Excel">↓ Excel</button>
+              <button class="btn btn-sm btn-pdf" onclick="exportAdmin('harvests','pdf')"  title="Export to PDF">↓ PDF</button>
+            </div>
+          </div>
         </div>
         <div style="overflow-x:auto">
           <table class="data-table">
@@ -212,6 +235,81 @@
             <tbody id="harvestsBody"><tr><td colspan="7"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr></tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <!-- ── AUDIT LOG TAB ────────────────────────────────────────────── -->
+    <div id="tab-audit" class="tab-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📋 Audit Log</span>
+          <span id="auditTotal" style="font-size:.78rem;color:var(--text-muted)"></span>
+        </div>
+
+        <!-- Filter bar -->
+        <div style="padding:12px 20px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div>
+            <label style="display:block;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:3px">Action</label>
+            <select id="auditAction" onchange="loadAuditLog()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem">
+              <option value="">All Actions</option>
+              <option value="create">Create</option>
+              <option value="update">Update</option>
+              <option value="delete">Delete</option>
+              <option value="login">Login</option>
+              <option value="logout">Logout</option>
+              <option value="export">Export</option>
+              <option value="password_change">Password Change</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:3px">Resource</label>
+            <select id="auditResource" onchange="loadAuditLog()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem">
+              <option value="">All Resources</option>
+              <option value="Beekeeper">Beekeeper</option>
+              <option value="Farm">Farm</option>
+              <option value="Hive">Hive</option>
+              <option value="Season">Season</option>
+              <option value="Harvest">Harvest</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:3px">Actor</label>
+            <input id="auditActor" placeholder="Search by name…" oninput="debounceAudit()"
+                   style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem;width:160px"/>
+          </div>
+          <div>
+            <label style="display:block;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:3px">From</label>
+            <input type="date" id="auditFrom" onchange="loadAuditLog()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem"/>
+          </div>
+          <div>
+            <label style="display:block;font-size:.72rem;font-weight:700;color:var(--text-muted);margin-bottom:3px">To</label>
+            <input type="date" id="auditTo" onchange="loadAuditLog()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:.82rem"/>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="resetAuditFilters()">Reset</button>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Actor</th>
+                <th>Role</th>
+                <th>Action</th>
+                <th>Resource</th>
+                <th>ID</th>
+                <th>Detail</th>
+                <th>IP Address</th>
+              </tr>
+            </thead>
+            <tbody id="auditBody">
+              <tr><td colspan="8"><div class="loading"><div class="spinner"></div>Loading…</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div id="auditPager" style="padding:12px 20px;display:flex;gap:8px;align-items:center;border-top:1px solid var(--border);font-size:.82rem;color:var(--text-muted)"></div>
       </div>
     </div>
 

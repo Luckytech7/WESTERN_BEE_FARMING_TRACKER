@@ -149,3 +149,35 @@ class Harvest(models.Model):
         if self.harvest_date and self.season is None:
             self.season = Season.get_for_date(self.harvest_date)
         super().save(*args, **kwargs)
+
+
+class AuditLog(models.Model):
+    ACTION_CHOICES = [
+        ('create',          'Create'),
+        ('update',          'Update'),
+        ('delete',          'Delete'),
+        ('login',           'Login'),
+        ('logout',          'Logout'),
+        ('export',          'Export'),
+        ('password_change', 'Password Change'),
+    ]
+
+    timestamp   = models.DateTimeField(auto_now_add=True)
+    actor_name  = models.CharField(max_length=200, blank=True, default='')
+    actor_role  = models.CharField(max_length=20,  blank=True, default='')
+    action      = models.CharField(max_length=20,  choices=ACTION_CHOICES)
+    resource    = models.CharField(max_length=50,  blank=True, default='')
+    resource_id = models.CharField(max_length=50,  blank=True, default='')
+    detail      = models.TextField(blank=True, default='')
+    ip_address  = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        indexes  = [
+            models.Index(fields=['-timestamp'],       name='audit_ts_idx'),
+            models.Index(fields=['action'],            name='audit_action_idx'),
+            models.Index(fields=['actor_name'],        name='audit_actor_idx'),
+        ]
+
+    def __str__(self):
+        return f"{self.timestamp:%Y-%m-%d %H:%M} {self.actor_name}: {self.action} {self.resource}"

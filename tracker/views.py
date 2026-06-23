@@ -22,6 +22,39 @@ from .permissions import (
     RBACMixin, get_session_role, get_session_beekeeper_id,
     has_permission, ROLE_ADMIN, ROLE_BEEKEEPER, ROLE_FARM_USER, ROLE_VIEWER
 )
+from . import exports as _exports
+from .audit import log_action
+from .models import AuditLog
+
+
+# ── Audit mixin ───────────────────────────────────────────────────────────────
+
+class AuditMixin:
+    """Logs create / update / delete on any ModelViewSet."""
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        log_action(self.request, 'create',
+                   resource=instance.__class__.__name__,
+                   resource_id=instance.pk,
+                   detail=str(instance))
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        log_action(self.request, 'update',
+                   resource=instance.__class__.__name__,
+                   resource_id=instance.pk,
+                   detail=str(instance))
+
+    def perform_destroy(self, instance):
+        resource    = instance.__class__.__name__
+        resource_id = instance.pk
+        detail      = str(instance)
+        instance.delete()
+        log_action(self.request, 'delete',
+                   resource=resource,
+                   resource_id=resource_id,
+                   detail=detail)
 
 
 def index(request):
@@ -67,6 +100,9 @@ def login_view(request):
     request.session['beekeeper_name']  = bk.name
     request.session.modified           = True
 
+    log_action(request, 'login', resource='Beekeeper', resource_id=bk.id,
+               detail=f'{bk.name} ({role}) logged in')
+
     return JsonResponse({
         'message':        f'Welcome, {bk.name}!',
         'role':           role,
@@ -77,6 +113,9 @@ def login_view(request):
 
 @api_view(['POST'])
 def logout_view(request):
+    log_action(request, 'logout', resource='Beekeeper',
+               resource_id=request.session.get('beekeeper_id', ''),
+               detail=f"{request.session.get('beekeeper_name', 'Unknown')} logged out")
     request.session.flush()
     return Response({'message': 'Logged out.'})
 
@@ -108,6 +147,8 @@ def change_password(request):
 
     bk.set_password(new_pw)
     bk.save(update_fields=['password_hash'])
+    log_action(request, 'password_change', resource='Beekeeper', resource_id=bk.id,
+               detail=f'{bk.name} changed their own password')
     return Response({'message': 'Password changed successfully.'})
 
 
@@ -127,7 +168,7 @@ def whoami(request):
 
 # ── ViewSets ──────────────────────────────────────────────────────────────────
 
-class BeekeeperViewSet(RBACMixin, viewsets.ModelViewSet):
+class BeekeeperViewSet(AuditMixin, RBACMixin, viewsets.ModelViewSet):
     queryset          = Beekeeper.objects.prefetch_related('farms').all()
     serializer_class  = BeekeeperSerializer
 
@@ -163,10 +204,12 @@ class BeekeeperViewSet(RBACMixin, viewsets.ModelViewSet):
         bk = self.get_object()
         bk.set_password(new_pw)
         bk.save(update_fields=['password_hash'])
+        log_action(request, 'password_change', resource='Beekeeper', resource_id=bk.id,
+                   detail=f"Admin reset password for {bk.name}")
         return Response({'message': f'Password for {bk.name} has been reset.'})
 
 
-class FarmViewSet(RBACMixin, viewsets.ModelViewSet):
+class FarmViewSet(AuditMixin, RBACMixin, viewsets.ModelViewSet):
     queryset         = Farm.objects.select_related('beekeeper').all()
     serializer_class = FarmSerializer
 
@@ -177,7 +220,7 @@ class FarmViewSet(RBACMixin, viewsets.ModelViewSet):
         return qs
 
 
-class HiveViewSet(RBACMixin, viewsets.ModelViewSet):
+class HiveViewSet(AuditMixin, RBACMixin, viewsets.ModelViewSet):
     queryset         = Hive.objects.select_related('farm', 'farm__beekeeper').all()
     serializer_class = HiveSerializer
 
@@ -190,7 +233,7 @@ class HiveViewSet(RBACMixin, viewsets.ModelViewSet):
         return qs
 
 
-class SeasonViewSet(viewsets.ModelViewSet):
+class SeasonViewSet(AuditMixin, viewsets.ModelViewSet):
     queryset         = Season.objects.all()
     serializer_class = SeasonSerializer
 
@@ -201,7 +244,7 @@ class SeasonViewSet(viewsets.ModelViewSet):
         return qs
 
 
-class HarvestViewSet(RBACMixin, viewsets.ModelViewSet):
+class HarvestViewSet(AuditMixin, RBACMixin, viewsets.ModelViewSet):
     queryset = Harvest.objects.select_related(
         'hive', 'hive__farm', 'hive__farm__beekeeper', 'season'
     ).all()
@@ -315,6 +358,107 @@ def admin_stats(request):
         'hives_by_type': list(
             Hive.objects.values('hive_type').annotate(count=Count('id'))
         ),
+    })
+
+
+# ── Export ────────────────────────────────────────────────────────────────────
+
+VALID_RESOURCES = {'beekeepers', 'farms', 'hives', 'seasons', 'harvests'}
+VALID_FORMATS   = {'xlsx', 'pdf'}
+
+
+@api_view(['GET'])
+def export_data(request):
+    """
+    GET /api/export/?resource=<name>&format=<xlsx|pdf>
+
+    Optional filter params (same as the respective ViewSet):
+      farm_id, hive_id, beekeeper_id, season_id, year, status, role
+    """
+    if not has_permission(request, 'read'):
+        return Response({'error': 'Authentication required.'}, status=401)
+
+    resource = request.query_params.get('resource', '').lower()
+    # Use 'export_format' not 'format' — DRF hijacks ?format= for content negotiation
+    fmt      = request.query_params.get('export_format', 'xlsx').lower()
+
+    if resource not in VALID_RESOURCES:
+        return Response(
+            {'error': f"Invalid resource. Choose from: {', '.join(sorted(VALID_RESOURCES))}"},
+            status=400,
+        )
+    if fmt not in VALID_FORMATS:
+        return Response(
+            {'error': "Invalid export_format. Choose 'xlsx' or 'pdf'."},
+            status=400,
+        )
+
+    # Non-admin beekeepers can only export their own data
+    bk_id = get_session_beekeeper_id(request)
+    role  = get_session_role(request)
+    params = dict(request.query_params)
+    # Flatten single-value lists from QueryDict
+    params = {k: v[0] if isinstance(v, list) and len(v) == 1 else v for k, v in params.items()}
+    # Remove control keys so they don't confuse filter functions
+    params.pop('resource', None)
+    params.pop('export_format', None)
+
+    if role in (ROLE_BEEKEEPER, ROLE_FARM_USER) and bk_id:
+        params.setdefault('beekeeper_id', str(bk_id))
+
+    log_action(request, 'export', resource=resource.capitalize(),
+               detail=f'Exported {resource} as {fmt.upper()}')
+
+    if fmt == 'xlsx':
+        return _exports.export_excel(resource, params)
+    return _exports.export_pdf(resource, params)
+
+
+# ── Audit Log ─────────────────────────────────────────────────────────────────
+
+@api_view(['GET'])
+def audit_log_view(request):
+    if get_session_role(request) != ROLE_ADMIN:
+        return Response({'error': 'Admin only.'}, status=403)
+
+    qs = AuditLog.objects.all()
+
+    action_filter   = request.query_params.get('action')
+    resource_filter = request.query_params.get('resource')
+    actor_filter    = request.query_params.get('actor')
+    date_from       = request.query_params.get('date_from')
+    date_to         = request.query_params.get('date_to')
+
+    if action_filter:   qs = qs.filter(action=action_filter)
+    if resource_filter: qs = qs.filter(resource__iexact=resource_filter)
+    if actor_filter:    qs = qs.filter(actor_name__icontains=actor_filter)
+    if date_from:       qs = qs.filter(timestamp__date__gte=date_from)
+    if date_to:         qs = qs.filter(timestamp__date__lte=date_to)
+
+    page_size = min(int(request.query_params.get('page_size', 100)), 500)
+    page      = max(int(request.query_params.get('page', 1)), 1)
+    offset    = (page - 1) * page_size
+    total     = qs.count()
+    entries   = qs[offset: offset + page_size]
+
+    return Response({
+        'total': total,
+        'page':  page,
+        'page_size': page_size,
+        'results': [
+            {
+                'id':          e.id,
+                'timestamp':   e.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                'actor_name':  e.actor_name,
+                'actor_role':  e.actor_role,
+                'action':      e.action,
+                'resource':    e.resource,
+                'resource_id': e.resource_id,
+                'detail':      e.detail,
+                'ip_address':  e.ip_address,
+            }
+            for e in entries
+        ],
     })
 
 

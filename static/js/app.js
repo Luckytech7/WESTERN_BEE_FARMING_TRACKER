@@ -477,6 +477,22 @@ async function submitHive() {
   } catch (err) { errEl.textContent = err.message; }
 }
 
+// ── Export ────────────────────────────────────────────────────────────────────
+
+function exportHarvests(fmt) {
+  const p = new URLSearchParams({ resource: 'harvests', export_format: fmt });
+  if (appState.selectedFarm) p.set('farm_id', appState.selectedFarm);
+  if (appState.selectedYear) p.set('year',    appState.selectedYear);
+  window.open(`/api/export/?${p}`, '_blank');
+}
+
+function exportHives(fmt) {
+  const p = new URLSearchParams({ resource: 'hives', export_format: fmt });
+  const farmId = document.getElementById('hiveFarm').value;
+  if (farmId) p.set('farm_id', farmId);
+  window.open(`/api/export/?${p}`, '_blank');
+}
+
 // ── Tab navigation ────────────────────────────────────────────────────────────
 
 function showTab(tab) {
