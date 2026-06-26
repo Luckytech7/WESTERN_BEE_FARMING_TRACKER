@@ -14,3 +14,5 @@ if _db_path.startswith('/tmp/') and not os.path.exists(_db_path):
     call_command('setup_deploy')
 
 application = get_wsgi_application()
+
+app = application
